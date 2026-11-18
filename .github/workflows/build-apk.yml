@@ -1,0 +1,60 @@
+
+name: Build Anis UNSS APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Unpack updated project
+        run: unzip -q anis-unss-notifications-updated.zip -d proj
+
+      - name: Install dependencies
+        working-directory: proj
+        run: npm install
+
+      - name: Add Android platform
+        working-directory: proj
+        run: npx cap add android
+
+      - name: Add notification sound
+        working-directory: proj
+        run: |
+          mkdir -p android/app/src/main/res/raw
+          cp resources/sounds/anis_notification.wav android/app/src/main/res/raw/anis_notification.wav
+
+      - name: Sync Android
+        working-directory: proj
+        run: npx cap sync android
+
+      - name: Build APK
+        working-directory: proj/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: anis-unss-apk
+          path: proj/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
